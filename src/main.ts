@@ -11,6 +11,7 @@ import App from './App.vue';
 import router from '@/router';
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
+import { setupAuthRefreshListener } from './utils/auth';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -47,6 +48,8 @@ const initializeAuthStore = async () => {
     authStore.logout();
   }
 };
+
+setupAuthRefreshListener();
 
 initializeAuthStore().finally(() => {
   app.mount('#app');
