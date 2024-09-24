@@ -1,20 +1,160 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
-import axios from 'axios'
-import { useAuthStore } from '@/stores/auth'
+import { ref, onMounted, watch, computed } from 'vue';
+import axios from 'axios';
+import { useAuthStore } from '@/stores/auth';
+import EditAccountModal from '@/components/Modals/Accounts/Edit.vue';
+import CreateAccountModal from '@/components/Modals/Accounts/Create.vue';
+import Swal from 'sweetalert2';
 
-const accounts = ref<any[]>([])
-const authStore = useAuthStore()
-const pageSize = ref<number>(10)
-const currentPage = ref<number>(1)
-const searchQuery = ref<string>('')
-const totalItems = ref<number>(0)
-const loading = ref<boolean>(false)
+const accounts = ref<any[]>([]);
+const authStore = useAuthStore();
+const pageSize = ref<number>(10);
+const currentPage = ref<number>(1);
+const searchQuery = ref<string>('');
+const totalItems = ref<number>(0);
+const loading = ref<boolean>(false);
+const selectedAccount = ref(null);
+const isCreateModalVisible = ref(false);
+const isEditModalVisible = ref(false);
 
-const pageSizeOptions = [10, 20, 30, 40, 50, 100]
+// Edit account
+const handleEditClick = (account: any) => {
+  selectedAccount.value = account;
+  isEditModalVisible.value = true;
+};
+
+// New account
+const handleNewAccountClick = () => {
+  selectedAccount.value = null;
+  isCreateModalVisible.value = true;
+};
+
+// Close modals
+const handleCreateModalClose = () => {
+  isCreateModalVisible.value = false;
+  selectedAccount.value = null;
+};
+
+const handleEditModalClose = () => {
+  isEditModalVisible.value = false;
+  selectedAccount.value = null;
+};
+
+// Delete account
+const handleDeleteClick = (account: any) => {
+  handleDelete(account.id);
+};
+
+const handleDelete = async (accountId: number) => {
+  const result = await Swal.fire({
+    title: 'Are you sure?',
+    text: "You won't be able to revert this!",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Yes, delete it!',
+  });
+
+  if (result.isConfirmed) {
+    try {
+      const token = authStore.token;
+      const apiUrl = import.meta.env.VITE_API_URL;
+
+      await axios.delete(`${apiUrl}/accounts/${accountId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      fetchAccounts();
+      Swal.fire({
+        toast: true,
+        icon: 'success',
+        title: 'Account deleted successfully',
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+          toast.addEventListener('mouseenter', Swal.stopTimer);
+          toast.addEventListener('mouseleave', Swal.resumeTimer);
+        },
+      });
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      Swal.fire('Error!', 'There was an issue deleting the account.', 'error');
+    }
+  }
+};
+
+// Create account
+const handleCreateModalSave = async (newAccountData: any) => {
+  try {
+    const token = authStore.token;
+    const apiUrl = import.meta.env.VITE_API_URL;
+
+    await axios.post(`${apiUrl}/accounts`, newAccountData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    fetchAccounts();
+    handleCreateModalClose();
+
+    // Toast success message for create action
+    Swal.fire({
+      toast: true,
+      icon: 'success',
+      title: 'Account created successfully',
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true,
+      didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer);
+        toast.addEventListener('mouseleave', Swal.resumeTimer);
+      },
+    });
+  } catch (error) {
+    console.error('Error creating account:', error.response ? error.response.data : error.message);
+  }
+};
+
+// Edit account
+const handleEditModalSave = async (updatedAccountData: any) => {
+  try {
+    const token = authStore.token;
+    const apiUrl = import.meta.env.VITE_API_URL;
+
+    await axios.put(`${apiUrl}/accounts/${selectedAccount.value.id}`, updatedAccountData, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    fetchAccounts();
+    handleEditModalClose();
+
+    // Toast success message for edit action
+    Swal.fire({
+      toast: true,
+      icon: 'success',
+      title: 'Account updated successfully',
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true,
+      didOpen: (toast) => {
+        toast.addEventListener('mouseenter', Swal.stopTimer);
+        toast.addEventListener('mouseleave', Swal.resumeTimer);
+      },
+    });
+  } catch (error) {
+    console.error('Error updating account:', error);
+  }
+};
+
+// Pagination and search
+const pageSizeOptions = [10, 20, 30, 40, 50, 100];
 
 const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
+  const date = new Date(dateString);
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
@@ -22,90 +162,100 @@ const formatDate = (dateString: string) => {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-  }).format(date)
-}
+  }).format(date);
+};
 
 const debounce = (func: Function, wait: number) => {
-  let timeout: number | null = null
+  let timeout: number | null = null;
   return (...args: any[]) => {
     if (timeout) {
-      clearTimeout(timeout)
+      clearTimeout(timeout);
     }
-    timeout = setTimeout(() => func(...args), wait)
-  }
-}
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
 
 const fetchAccounts = async () => {
-  
-  loading.value = true
+  loading.value = true;
 
   try {
-    const token = authStore.token
-    const apiUrl = import.meta.env.VITE_API_URL
+    const token = authStore.token;
+    const apiUrl = import.meta.env.VITE_API_URL;
 
     const response = await axios.get(`${apiUrl}/accounts`, {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         search_query: searchQuery.value,
         limit: pageSize.value,
-        page: currentPage.value
-      }
-    })
+        page: currentPage.value,
+      },
+    });
 
-    accounts.value = response.data.data.data
-    totalItems.value = response.data.data.total
-
+    accounts.value = response.data.data.data;
+    totalItems.value = response.data.data.total;
   } catch (error) {
-    console.error('Error fetching accounts:', error)
+    console.error('Error fetching accounts:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
-const debouncedFetchAccounts = debounce(fetchAccounts, 500)
+const debouncedFetchAccounts = debounce(fetchAccounts, 500);
 
 watch([pageSize, currentPage, searchQuery], () => {
-  debouncedFetchAccounts()
-})
+  debouncedFetchAccounts();
+});
 
 onMounted(() => {
-  fetchAccounts()
-})
+  fetchAccounts();
+});
 
+// Pagination methods
 const handlePageChange = (page: number) => {
   if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
+    currentPage.value = page;
   }
-}
+};
 
 const handlePageSizeChange = (event: Event) => {
-  const target = event.target as HTMLSelectElement
+  const target = event.target as HTMLSelectElement;
   if (target) {
-    pageSize.value = parseInt(target.value, 10)
-    currentPage.value = 1
+    pageSize.value = parseInt(target.value, 10);
+    currentPage.value = 1;
   }
-}
+};
 
 const handleSearch = (event: Event) => {
-  const target = event.target as HTMLInputElement
+  const target = event.target as HTMLInputElement;
   if (target) {
-    searchQuery.value = target.value
-    currentPage.value = 1
+    searchQuery.value = target.value;
+    currentPage.value = 1;
   }
-}
+};
 
-const totalPages = computed(() => Math.ceil(totalItems.value / pageSize.value))
+const totalPages = computed(() => Math.ceil(totalItems.value / pageSize.value));
 const pageNumbers = computed(() => {
-  const pages = []
+  const pages = [];
   for (let i = 1; i <= totalPages.value; i++) {
-    pages.push(i)
+    pages.push(i);
   }
-  return pages
-})
+  return pages;
+});
 </script>
 
 <template>
   <div class="rounded-sm border border-stroke bg-white px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
+    
+    <div class="flex justify-end items-center pb-5">
+      <button
+        type="button"
+        class="bg-blue-600 text-white px-4 py-2 rounded"
+        @click="handleNewAccountClick"
+      >
+        New Account
+      </button>
+    </div>
+
     <div class="flex flex-col sm:flex-row items-center justify-between mb-6">
       <div class="mb-4.5">
         <input
@@ -195,10 +345,10 @@ const pageNumbers = computed(() => {
                     <i class='bx bx-show'></i>
                   </button>
                   -->
-                  <button class="hover:text-primary" title="Edit">
+                  <button class="hover:text-primary" title="Edit" @click="handleEditClick(account)">
                     <i class='bx bx-edit'></i>
                   </button>
-                  <button class="hover:text-primary" title="Delete">
+                  <button class="hover:text-primary" title="Delete" @click="handleDeleteClick(account)">
                     <i class='bx bx-trash'></i>
                   </button>
                 </div>
@@ -246,6 +396,20 @@ const pageNumbers = computed(() => {
       </div>
     </div>
   </div>
+
+  <CreateAccountModal
+      :isVisible="isCreateModalVisible"
+      :account="selectedAccount || { account_name: '', account_type: '', balance: 0 }"
+      @close="handleCreateModalClose"
+      @save="handleCreateModalSave"
+  />
+
+  <EditAccountModal
+      :isVisible="isEditModalVisible"
+      :account="selectedAccount || { account_name: '', account_type: '', balance: 0 }"
+      @close="handleEditModalClose"
+      @save="handleEditModalSave"
+  />
 </template>
 
 <style scoped>
