@@ -24,7 +24,7 @@ const menuGroups = ref([
       {
         icon: `<i class="bx bx-credit-card" style="font-size: 1.5rem; margin-top: .2rem;"></i>`,
         label: 'Transactions',
-        route: 'dashboard/transactions'
+        route:  { name: 'transactions' }
       },
       {
         icon: `<i class="bx bx-wallet" style="font-size: 1.5rem; margin-top: .2rem;"></i>`,

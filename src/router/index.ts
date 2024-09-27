@@ -5,6 +5,7 @@ import MoneyTrackerView from '@/views/Dashboard/MoneyTrackerView.vue';
 import NotFound from '@/views/NotFound.vue';
 import AccountsView from '@/views/Pages/AccountsView.vue';
 import SettingsView from '@/views/Pages/SettingsView.vue';
+import TransactionView from '@/views/Pages/TransactionView.vue';
 
 const routes = [
   {
@@ -12,6 +13,12 @@ const routes = [
     name: 'dashboard',
     component: MoneyTrackerView,
     meta: { title: 'Dashboard', requiresAuth: true }
+  },
+  {
+    path: '/dashboard/transactions',
+    name: 'transactions',
+    component: TransactionView,
+    meta: { title: 'Transactions', requiresAuth: true }
   },
   {
     path: '/dashboard/accounts',
@@ -35,7 +42,7 @@ const routes = [
     path: '/:catchAll(.*)',
     name: 'NotFound',
     component: NotFound,
-    meta: { title: '404 Not Found' }
+    meta: { title: '404 Not Found', requiresAuth: false }
   }
 ];
 
